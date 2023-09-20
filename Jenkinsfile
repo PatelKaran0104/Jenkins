@@ -1,57 +1,50 @@
-#!groovy
-import groovy.json.JsonSlurperClassic
-
+#!/usr/bin/env groovy
+ 
 node {
-
-    def BUILD_NUMBER = env.BUILD_NUMBER
-    def RUN_ARTIFACT_DIR = "tests/${BUILD_NUMBER}"
-    def SFDC_USERNAME
-
-    def HUB_ORG = env.HUB_ORG_DH
-    def SFDC_HOST = env.SFDC_HOST_DH
-    def JWT_KEY_CRED_ID = env.JWT_CRED_ID_DH
-    def CONNECTED_APP_CONSUMER_KEY = env.CONNECTED_APP_CONSUMER_KEY_DH
-
-    def toolbelt = tool 'toolbelt'
-
-    stage('checkout source') {
-        checkout scm
+    withEnv(["LT_USERNAME=Your LambdaTest UserName",
+    "LT_ACCESS_KEY=Your LambdaTest Access Key",
+    "LT_TUNNEL=true"]){
+ 
+    echo env.LT_USERNAME
+    echo env.LT_ACCESS_KEY 
+    
+   stage('setup') { 
+   
+      // Get some code from a GitHub repository
+    try{
+      git 'https://github.com/LambdaTest/nightwatch-selenium-sample.git'
+ 
+      //Download Tunnel Binary
+      sh "wget https://s3.amazonaws.com/lambda-tunnel/LT_Linux.zip"
+ 
+      //Required if unzip is not installed
+      sh 'sudo apt-get install --no-act unzip'
+      sh 'unzip -o LT_Linux.zip'
+ 
+      //Starting Tunnel Process 
+      sh "./LT -user ${env.LT_USERNAME} -key ${env.LT_ACCESS_KEY} &"
+      sh  "rm -rf LT_Linux.zip"
     }
-
-    withCredentials([file(credentialsId: JWT_KEY_CRED_ID, variable: 'jwt_key_file')]) {
-        stage('Deploy Code') {
-            script {
-                if (isUnix()) {
-                    // On Unix-like systems (including macOS), use zsh as the shell
-                    rc = sh returnStatus: true, script: """
-                        ${toolbelt} force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${HUB_ORG} --jwtkeyfile ${jwt_key_file} --setdefaultdevhubusername --instanceurl ${SFDC_HOST}
-                    """
-                } else {
-                    // On Windows, use bat
-                    rc = bat returnStatus: true, script: """
-                        "${toolbelt}" force:auth:jwt:grant --clientid ${CONNECTED_APP_CONSUMER_KEY} --username ${HUB_ORG} --jwtkeyfile "${jwt_key_file}" --setdefaultdevhubusername --instanceurl ${SFDC_HOST}
-                    """
-                }
-
-                if (rc != 0) { error 'hub org authorization failed' }
-
-                // Print the return code
-                println "Return code: ${rc}"
-                
-                // Need to pull out assigned username
-                if (isUnix()) {
-                    rmsg = sh returnStdout: true, script: """
-                        ${toolbelt} force:mdapi:deploy -d manifest/. -u ${HUB_ORG}
-                    """
-                } else {
-                    rmsg = bat returnStdout: true, script: """
-                        "${toolbelt}" force:mdapi:deploy -d manifest/. -u ${HUB_ORG}
-                    """
-                }
-                
-                // Print the deployment message
-                println(rmsg)
-            }
-        }
+    catch (err){
+      echo err
+   }
+    
+   }
+   stage('build') {
+      // Installing Dependencies
+      sh 'npm install'
     }
+   
+   stage('test') {
+          try{
+          sh './node_modules/.bin/nightwatch -e chrome,edge tests'
+          }
+          catch (err){
+          echo err
+          }  
+   }
+   stage('end') {  
+     echo "Success" 
+     }
+ }
 }
