@@ -1,4 +1,3 @@
-#!groovy
 import groovy.json.JsonSlurperClassic
 
 node {
@@ -16,6 +15,7 @@ node {
 
     stage('checkout source') {
         checkout scm
+        echo "Checked out source code"
     }
 
     withCredentials([file(credentialsId: JWT_KEY_CRED_ID, variable: 'jwt_key_file')]) {
@@ -33,10 +33,11 @@ node {
                     """
                 }
 
-                if (rc != 0) { error 'hub org authorization failed' }
+                echo "Return code: ${rc}"
 
-                // Print the return code
-                println "Return code: ${rc}"
+                if (rc != 0) { 
+                    error 'hub org authorization failed' 
+                }
 
                 // Need to pull out assigned username
                 if (isUnix()) {
@@ -49,8 +50,8 @@ node {
                     """
                 }
 
-                // Print the deployment message
-                println(rmsg)
+                echo "Deployment message:"
+                echo(rmsg)
             }
         }
     }
