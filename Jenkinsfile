@@ -1,3 +1,4 @@
+#!groovy
 import groovy.json.JsonSlurperClassic
 
 node {
@@ -13,13 +14,18 @@ node {
 
     def toolbelt = tool 'toolbelt'
 
+    println "First Step - Deploying to Dev Hub"
+
     stage('checkout source') {
         checkout scm
-        echo "Checked out source code"
     }
 
     withCredentials([file(credentialsId: JWT_KEY_CRED_ID, variable: 'jwt_key_file')]) {
+        
+        println "second Step - Deploying to Dev Hub"
+        
         stage('Deploy Code') {
+        println "check isUnix - ${isUnix()}"
             script {
                 if (isUnix()) {
                     // On Unix-like systems (including macOS), use zsh as the shell
@@ -33,11 +39,10 @@ node {
                     """
                 }
 
-                echo "Return code: ${rc}"
+                if (rc != 0) { error 'hub org authorization failed' }
 
-                if (rc != 0) { 
-                    error 'hub org authorization failed' 
-                }
+                // Print the return code
+                println "Return code: ${rc}"
 
                 // Need to pull out assigned username
                 if (isUnix()) {
@@ -50,8 +55,8 @@ node {
                     """
                 }
 
-                echo "Deployment message:"
-                echo(rmsg)
+                // Print the deployment message
+                println(rmsg)
             }
         }
     }
