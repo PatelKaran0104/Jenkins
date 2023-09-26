@@ -4,9 +4,5 @@
 		<members>createContact</members>
 		<name>ApexClass</name>
 	</types>
-	<types>
-		<members>ContactCreation</members>
-		<name>LightningComponentBundle</name>
-	</types>
 	<version>55.0</version>
 </Package>
